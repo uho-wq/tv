@@ -1,0 +1,10 @@
+# ビルド成果物
+/todotxt-viewer
+*.exe
+
+# テスト・カバレッジ
+*.out
+coverage.txt
+
+# OS / エディタ
+.DS_Store

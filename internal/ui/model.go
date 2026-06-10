@@ -5,8 +5,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/uho-wq/todotxt-viewer/internal/filter"
-	"github.com/uho-wq/todotxt-viewer/internal/store"
+	"github.com/uho-wq/tv/internal/filter"
+	"github.com/uho-wq/tv/internal/store"
 )
 
 type mode int

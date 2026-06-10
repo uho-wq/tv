@@ -1,4 +1,4 @@
-# todotxt-viewer
+# tv
 
 [todo.txt フォーマット](https://github.com/todotxt/todo.txt)で書かれたタスクを閲覧する TUI ツール。
 Go + [Bubble Tea](https://github.com/charmbracelet/bubbletea) 製。
@@ -6,14 +6,14 @@ Go + [Bubble Tea](https://github.com/charmbracelet/bubbletea) 製。
 ## インストール
 
 ```sh
-go install github.com/uho-wq/todotxt-viewer@latest
+go install github.com/uho-wq/tv@latest
 ```
 
 
 ## 使い方
 
 ```sh
-todotxt-viewer [path]
+tv [path]
 ```
 
 `path` を省略した場合、次の優先順位で todo.txt を探します。

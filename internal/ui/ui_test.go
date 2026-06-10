@@ -9,8 +9,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/uho-wq/todotxt-viewer/internal/filter"
-	"github.com/uho-wq/todotxt-viewer/internal/store"
+	"github.com/uho-wq/tv/internal/filter"
+	"github.com/uho-wq/tv/internal/store"
 )
 
 func setup(t *testing.T, content string) (Model, string) {
@@ -190,11 +190,75 @@ func TestToggleCompleted(t *testing.T) {
 func TestViewRenders(t *testing.T) {
 	m, _ := setup(t, "(A) important +Proj @ctx due:2026-06-30\n")
 	out := m.View()
-	if !strings.Contains(out, "todotxt-viewer") {
+	if !strings.Contains(out, "tv") {
 		t.Errorf("view missing header")
 	}
 	if !strings.Contains(out, "important") {
 		t.Errorf("view missing task text")
+	}
+}
+
+func TestEditorCommand(t *testing.T) {
+	tests := []struct {
+		name     string
+		editor   string
+		visual   string
+		wantName string
+		wantArgs []string
+	}{
+		{"EDITOR優先", "nvim", "vim", "nvim", []string{"/p"}},
+		{"EDITORに引数", "code --wait", "", "code", []string{"--wait", "/p"}},
+		{"EDITOR空はVISUAL", "", "vim", "vim", []string{"/p"}},
+		{"両方空はvi", "", "", "vi", []string{"/p"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			name, args := editorCommand(tt.editor, tt.visual, "/p")
+			if name != tt.wantName {
+				t.Errorf("name = %q, want %q", name, tt.wantName)
+			}
+			if strings.Join(args, " ") != strings.Join(tt.wantArgs, " ") {
+				t.Errorf("args = %v, want %v", args, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestEditKeyReturnsCommand(t *testing.T) {
+	m, _ := setup(t, "a\n")
+	if _, cmd := update(m, runes("e")); cmd == nil {
+		t.Errorf("e キーで tea.Cmd が返るべき")
+	}
+}
+
+func TestEditorFinishedReloads(t *testing.T) {
+	m, path := setup(t, "a\nb\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+	if m.taskCount() != 2 {
+		t.Fatalf("初期 count = %d, want 2", m.taskCount())
+	}
+
+	// エディタが行を追加したと仮定して外部から書き換える。
+	if err := os.WriteFile(path, []byte("a\nb\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// エディタ終了通知で再読込される。
+	m, _ = update(m, editorFinishedMsg{})
+	if m.taskCount() != 3 {
+		t.Errorf("再読込後 count = %d, want 3", m.taskCount())
+	}
+	if m.statusErr {
+		t.Errorf("予期しないエラー status: %q", m.status)
+	}
+}
+
+func TestEditorFinishedError(t *testing.T) {
+	m, _ := setup(t, "a\n")
+	m, _ = update(m, editorFinishedMsg{err: os.ErrNotExist})
+	if !m.statusErr {
+		t.Errorf("エディタ起動失敗時はエラー status になるべき")
 	}
 }
 

@@ -1,8 +1,8 @@
-// Command todotxt-viewer は todo.txt フォーマットのタスクを閲覧する TUI ツール。
+// Command tv は todo.txt フォーマットのタスクを閲覧する TUI ツール。
 //
 // 使い方:
 //
-//	todotxt-viewer [path]
+//	tv [path]
 //
 // path 省略時は環境変数 (TODOTXT_FILE / TODO_FILE / TODO_DIR) を参照し、
 // 見つからなければ ~/todo.txt を開く。
@@ -15,14 +15,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/uho-wq/todotxt-viewer/internal/config"
-	"github.com/uho-wq/todotxt-viewer/internal/store"
-	"github.com/uho-wq/todotxt-viewer/internal/ui"
+	"github.com/uho-wq/tv/internal/config"
+	"github.com/uho-wq/tv/internal/store"
+	"github.com/uho-wq/tv/internal/ui"
 )
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "todotxt-viewer - todo.txt 閲覧 TUI\n\n")
+		fmt.Fprintf(os.Stderr, "tv - todo.txt 閲覧 TUI\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [path]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "path 省略時は TODOTXT_FILE / TODO_FILE / TODO_DIR / ~/todo.txt の順に解決します。\n")
 	}

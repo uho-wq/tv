@@ -3,7 +3,7 @@ package filter
 import (
 	"testing"
 
-	"github.com/uho-wq/todotxt-viewer/internal/todotxt"
+	"github.com/uho-wq/tv/internal/todotxt"
 )
 
 func parse(lines ...string) []todotxt.Task {

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/uho-wq/todotxt-viewer/internal/todotxt"
+	"github.com/uho-wq/tv/internal/todotxt"
 )
 
 // Criteria は絞り込み条件を表す。

@@ -1,5 +1,5 @@
 # ビルド成果物
-/todotxt-viewer
+/tv
 *.exe
 
 # テスト・カバレッジ

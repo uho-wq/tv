@@ -2,16 +2,22 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/uho-wq/todotxt-viewer/internal/filter"
-	"github.com/uho-wq/todotxt-viewer/internal/store"
-	"github.com/uho-wq/todotxt-viewer/internal/todotxt"
+	"github.com/uho-wq/tv/internal/filter"
+	"github.com/uho-wq/tv/internal/store"
+	"github.com/uho-wq/tv/internal/todotxt"
 )
+
+// editorFinishedMsg は外部エディタ (tea.ExecProcess) の終了を通知する。
+type editorFinishedMsg struct{ err error }
 
 // Update は Bubble Tea のメッセージを処理する。
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -21,6 +27,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.input.Width = msg.Width - len(m.input.Prompt) - 4
 		m.ensureVisible()
+		return m, nil
+
+	case editorFinishedMsg:
+		if msg.err != nil {
+			m.setStatus(fmt.Sprintf("エディタの起動に失敗しました: %v", msg.err), true)
+			return m, nil
+		}
+		// エディタで書き換えられている可能性があるため読み直す。
+		m.reload()
+		if !m.statusErr {
+			m.setStatus("編集を反映しました", false)
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -81,6 +99,9 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.Reload):
 		m.reload()
+
+	case key.Matches(msg, m.keys.Edit):
+		return m, m.openEditor()
 
 	case key.Matches(msg, m.keys.Undo):
 		m.undo()
@@ -208,6 +229,31 @@ func (m *Model) undo() {
 	m.rebuild()
 	m.cursorToEdge(1) // 復元タスクは末尾に戻る
 	m.setStatus("アーカイブを取り消しました", false)
+}
+
+// openEditor は表示中のファイルを外部エディタで開く tea.Cmd を返す。
+// TUI は一時的に中断され、エディタ終了後に editorFinishedMsg が届く。
+func (m Model) openEditor() tea.Cmd {
+	name, args := editorCommand(os.Getenv("EDITOR"), os.Getenv("VISUAL"), m.file.Path)
+	c := exec.Command(name, args...)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return editorFinishedMsg{err: err}
+	})
+}
+
+// editorCommand は起動するエディタのコマンド名と引数を決める。
+// $EDITOR を最優先し、無ければ $VISUAL、それも無ければ vi にフォールバックする。
+// 環境変数が引数を含む場合 (例: "code --wait") も分割して扱う。
+func editorCommand(editorEnv, visualEnv, path string) (string, []string) {
+	editor := editorEnv
+	if editor == "" {
+		editor = visualEnv
+	}
+	if editor == "" {
+		editor = "vi"
+	}
+	fields := strings.Fields(editor)
+	return fields[0], append(fields[1:], path)
 }
 
 // reload はファイルを読み直す。

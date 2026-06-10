@@ -3,7 +3,7 @@ package ui
 import (
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/uho-wq/todotxt-viewer/internal/todotxt"
+	"github.com/uho-wq/tv/internal/todotxt"
 )
 
 type styles struct {

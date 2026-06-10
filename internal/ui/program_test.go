@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"github.com/uho-wq/todotxt-viewer/internal/store"
+	"github.com/uho-wq/tv/internal/store"
 )
 
 // TestProgramEndToEnd は tea.Program 経由でモデルを起動し、描画とキー操作・
@@ -39,7 +39,7 @@ func TestProgramEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"todotxt-viewer", "buy milk", "write report"} {
+	for _, want := range []string{"tv", "buy milk", "write report"} {
 		if !bytes.Contains(out, []byte(want)) {
 			t.Errorf("final output missing %q.\n--- output ---\n%s", want, out)
 		}

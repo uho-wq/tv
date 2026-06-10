@@ -1,4 +1,4 @@
-module github.com/uho-wq/todotxt-viewer
+module github.com/uho-wq/tv
 
 go 1.26.3
 

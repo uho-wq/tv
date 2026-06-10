@@ -7,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/uho-wq/todotxt-viewer/internal/todotxt"
+	"github.com/uho-wq/tv/internal/todotxt"
 )
 
 func homeDir() (string, error) { return os.UserHomeDir() }
@@ -31,7 +31,7 @@ func (m Model) View() string {
 }
 
 func (m Model) renderHeader() string {
-	left := m.st.header.Render("todotxt-viewer")
+	left := m.st.header.Render("tv")
 
 	meta := []string{
 		shortenPath(m.file.Path),
@@ -132,7 +132,7 @@ func (m Model) renderFooter() string {
 		return clip.Render(st.Render(m.status))
 	}
 
-	keybar := "j/k 移動 · x 完了 · a アーカイブ · f フィルタ · tab グループ · c 完了表示 · u 取消 · r 再読込 · ? ヘルプ · q 終了"
+	keybar := "j/k 移動 · x 完了 · a アーカイブ · f フィルタ · tab グループ · c 完了表示 · u 取消 · r 再読込 · e 編集 · ? ヘルプ · q 終了"
 	return clip.Render(m.st.footer.Render(keybar))
 }
 
@@ -152,6 +152,7 @@ func (m Model) renderHelp() string {
 		"  tab           グルーピング切替 (project→context→priority→flat)",
 		"  c             完了タスクの表示/非表示",
 		"  r             ファイル再読込",
+		"  e             $EDITOR でファイルを開く (終了後に再読込)",
 		"  ?             このヘルプを閉じる",
 		"  q / Ctrl+C    終了",
 		"",

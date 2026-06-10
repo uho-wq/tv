@@ -3,7 +3,7 @@ package filter
 import (
 	"sort"
 
-	"github.com/uho-wq/todotxt-viewer/internal/todotxt"
+	"github.com/uho-wq/tv/internal/todotxt"
 )
 
 // GroupKey はグルーピングの軸を表す。

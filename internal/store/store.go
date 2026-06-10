@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/uho-wq/todotxt-viewer/internal/todotxt"
+	"github.com/uho-wq/tv/internal/todotxt"
 )
 
 // File は読み込んだ todo.txt とそのタスク群を表す。
@@ -156,7 +156,7 @@ func (f *File) UndoArchive(want []string) error {
 
 func atomicWrite(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".todotxt-viewer-*.tmp")
+	tmp, err := os.CreateTemp(dir, ".tv-*.tmp")
 	if err != nil {
 		return err
 	}

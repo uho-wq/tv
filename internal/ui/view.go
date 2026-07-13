@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/uho-wq/tv/internal/filter"
 	"github.com/uho-wq/tv/internal/todotxt"
 )
 
@@ -37,6 +38,9 @@ func (m Model) renderHeader() string {
 		shortenPath(m.file.Path),
 		fmt.Sprintf("%d tasks", m.taskCount()),
 		"group:" + groupLabel(m.groupKey),
+	}
+	if m.sortKey != filter.SortPriority {
+		meta = append(meta, "sort:"+sortLabel(m.sortKey))
 	}
 	if !m.criteria.Empty() {
 		meta = append(meta, "filter:"+m.criteriaLabel())
@@ -132,7 +136,7 @@ func (m Model) renderFooter() string {
 		return clip.Render(st.Render(m.status))
 	}
 
-	keybar := "j/k 移動 · x 完了 · a アーカイブ · f フィルタ · tab グループ · c 完了表示 · u 取消 · r 再読込 · e 編集 · ? ヘルプ · q 終了"
+	keybar := "j/k 移動 · x 完了 · a アーカイブ · f フィルタ · tab グループ · s ソート · c 完了表示 · u 取消 · r 再読込 · e 編集 · ? ヘルプ · q 終了"
 	return clip.Render(m.st.footer.Render(keybar))
 }
 
@@ -150,6 +154,7 @@ func (m Model) renderHelp() string {
 		"  f / /         フィルタ入力 (+proj @ctx (A) keyword)",
 		"  esc           フィルタ解除",
 		"  tab           グルーピング切替 (project→context→priority→flat)",
+		"  s             ソート切替 (priority⇔completed: 完了日の新しい順)",
 		"  c             完了タスクの表示/非表示",
 		"  r             ファイル再読込",
 		"  e             $EDITOR でファイルを開く (終了後に再読込)",

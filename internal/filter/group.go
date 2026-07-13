@@ -30,6 +30,22 @@ func (k GroupKey) Next() GroupKey {
 	}
 }
 
+// SortKey はグループ内のタスクの並び順を表す。
+type SortKey string
+
+const (
+	SortPriority   SortKey = "priority"   // 未完了→優先度→原文順（デフォルト）
+	SortCompletion SortKey = "completion" // 完了日の新しい順
+)
+
+// Next は次のソート軸を返す（UI のトグル用）。
+func (k SortKey) Next() SortKey {
+	if k == SortPriority {
+		return SortCompletion
+	}
+	return SortPriority
+}
+
 // Group は見出しと、それに属するタスクのインデックス群を持つ。
 type Group struct {
 	Title   string
@@ -47,10 +63,10 @@ const (
 //
 // project / context を複数持つタスクは、該当する各グループに重複して現れる
 // （俯瞰しやすくするため）。
-func GroupBy(tasks []todotxt.Task, indices []int, key GroupKey) []Group {
+func GroupBy(tasks []todotxt.Task, indices []int, key GroupKey, sortKey SortKey) []Group {
 	if key == GroupFlat {
 		g := Group{Title: "", Indices: append([]int(nil), indices...)}
-		sortIndices(tasks, g.Indices)
+		sortIndices(tasks, g.Indices, sortKey)
 		return []Group{g}
 	}
 
@@ -102,7 +118,7 @@ func GroupBy(tasks []todotxt.Task, indices []int, key GroupKey) []Group {
 	groups := make([]Group, 0, len(order))
 	for _, title := range order {
 		idxs := buckets[title]
-		sortIndices(tasks, idxs)
+		sortIndices(tasks, idxs, sortKey)
 		groups = append(groups, Group{Title: title, Indices: idxs})
 	}
 	return groups
@@ -112,9 +128,16 @@ func isNoGroup(title string) bool {
 	return title == noProject || title == noContext || title == noPriority
 }
 
-// sortIndices はグループ内のタスク順を整える。
-// 未完了を先、完了を後。次に優先度（A が上、なしは下）、最後に原文順。
-func sortIndices(tasks []todotxt.Task, idxs []int) {
+// sortIndices はグループ内のタスク順を sortKey に従って整える。
+//
+// SortPriority: 未完了を先、完了を後。次に優先度（A が上、なしは下）、最後に原文順。
+// SortCompletion: 完了タスクを完了日の新しい順で先頭に。日付なしの完了は
+// その後ろ、未完了は末尾に原文順で続く。
+func sortIndices(tasks []todotxt.Task, idxs []int, sortKey SortKey) {
+	if sortKey == SortCompletion {
+		sortByCompletion(tasks, idxs)
+		return
+	}
 	sort.SliceStable(idxs, func(a, b int) bool {
 		ta, tb := tasks[idxs[a]], tasks[idxs[b]]
 		if ta.Completed != tb.Completed {
@@ -123,6 +146,23 @@ func sortIndices(tasks []todotxt.Task, idxs []int) {
 		pa, pb := priorityRank(ta.Priority), priorityRank(tb.Priority)
 		if pa != pb {
 			return pa < pb
+		}
+		return idxs[a] < idxs[b] // 原文順
+	})
+}
+
+func sortByCompletion(tasks []todotxt.Task, idxs []int) {
+	sort.SliceStable(idxs, func(a, b int) bool {
+		ta, tb := tasks[idxs[a]], tasks[idxs[b]]
+		if ta.Completed != tb.Completed {
+			return ta.Completed // 完了が先
+		}
+		da, db := ta.CompletionDate, tb.CompletionDate
+		if (da != nil) != (db != nil) {
+			return da != nil // 完了日ありが先
+		}
+		if da != nil && !da.Equal(*db) {
+			return da.After(*db) // 新しい完了が上
 		}
 		return idxs[a] < idxs[b] // 原文順
 	})

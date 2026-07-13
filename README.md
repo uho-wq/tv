@@ -36,6 +36,7 @@ If `path` is omitted, todo.txt is located in the following order of priority:
 | `f` / `/` | Filter input (`+proj @ctx (A) keyword`) |
 | `esc` | Clear filter |
 | `tab` | Switch grouping (project → context → priority → flat) |
+| `s` | Toggle sort (priority ⇔ completed: most recently completed first) |
 | `c` | Show/hide completed tasks |
 | `r` | Reload file |
 | `?` | Help |

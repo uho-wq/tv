@@ -36,6 +36,7 @@ type Model struct {
 	file     *store.File
 	criteria filter.Criteria
 	groupKey filter.GroupKey
+	sortKey  filter.SortKey
 
 	rows   []row // 表示行（見出し + タスク）
 	cursor int   // rows 内のインデックス（常にタスク行を指す。タスクが無ければ -1）
@@ -66,6 +67,7 @@ func New(f *store.File) Model {
 	m := Model{
 		file:     f,
 		groupKey: filter.GroupByProject,
+		sortKey:  filter.SortPriority,
 		keys:     defaultKeys(),
 		st:       newStyles(),
 		input:    ti,
@@ -88,7 +90,7 @@ func (m *Model) rebuild() {
 	ord := m.cursorOrdinal()
 
 	indices := filter.Apply(m.file.Tasks, m.criteria)
-	groups := filter.GroupBy(m.file.Tasks, indices, m.groupKey)
+	groups := filter.GroupBy(m.file.Tasks, indices, m.groupKey, m.sortKey)
 
 	rows := make([]row, 0, len(indices)+len(groups))
 	for _, g := range groups {

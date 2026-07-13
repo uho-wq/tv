@@ -11,6 +11,7 @@ type keyMap struct {
 	Archive         key.Binding
 	Undo            key.Binding
 	Group           key.Binding
+	Sort            key.Binding
 	ToggleCompleted key.Binding
 	Filter          key.Binding
 	ClearFilter     key.Binding
@@ -53,6 +54,10 @@ func defaultKeys() keyMap {
 		Group: key.NewBinding(
 			key.WithKeys("tab"),
 			key.WithHelp("tab", "グループ切替"),
+		),
+		Sort: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "ソート切替"),
 		),
 		ToggleCompleted: key.NewBinding(
 			key.WithKeys("c"),

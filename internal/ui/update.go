@@ -75,6 +75,15 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.rebuild()
 		m.setStatus(fmt.Sprintf("グループ: %s", groupLabel(m.groupKey)), false)
 
+	case key.Matches(msg, m.keys.Sort):
+		m.sortKey = m.sortKey.Next()
+		m.rebuild()
+		s := fmt.Sprintf("ソート: %s", sortLabel(m.sortKey))
+		if m.sortKey == filter.SortCompletion && !m.criteria.ShowCompleted {
+			s += "  (完了タスク非表示中。c で表示)"
+		}
+		m.setStatus(s, false)
+
 	case key.Matches(msg, m.keys.ToggleCompleted):
 		m.criteria.ShowCompleted = !m.criteria.ShowCompleted
 		m.rebuild()
@@ -277,6 +286,13 @@ func (m *Model) setStatus(s string, isErr bool) {
 func (m *Model) clearStatus() {
 	m.status = ""
 	m.statusErr = false
+}
+
+func sortLabel(k filter.SortKey) string {
+	if k == filter.SortCompletion {
+		return "completed"
+	}
+	return "priority"
 }
 
 func groupLabel(k filter.GroupKey) string {

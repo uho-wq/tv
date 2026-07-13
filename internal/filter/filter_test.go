@@ -70,7 +70,7 @@ func TestGroupByProject(t *testing.T) {
 		"d",             // no project
 	)
 	indices := Apply(tasks, Criteria{})
-	groups := GroupBy(tasks, indices, GroupByProject)
+	groups := GroupBy(tasks, indices, GroupByProject, SortPriority)
 
 	// +Home, +Work が先（アルファベット順）、(no project) が最後
 	if len(groups) != 3 {
@@ -92,13 +92,42 @@ func TestGroupFlatSort(t *testing.T) {
 		"(A) high",
 	)
 	indices := Apply(tasks, Criteria{})
-	groups := GroupBy(tasks, indices, GroupFlat)
+	groups := GroupBy(tasks, indices, GroupFlat, SortPriority)
 	if len(groups) != 1 {
 		t.Fatalf("flat should be 1 group, got %d", len(groups))
 	}
 	// 優先度順: A(2), B(1), なし(0)
 	if !eqInts(groups[0].Indices, []int{2, 1, 0}) {
 		t.Errorf("flat sorted = %v, want [2 1 0]", groups[0].Indices)
+	}
+}
+
+func TestGroupFlatSortCompletion(t *testing.T) {
+	tasks := parse(
+		"(A) pending high",            // 0: 未完了
+		"x 2026-06-01 old done",       // 1: 古い完了
+		"x 2026-06-10 recent done",    // 2: 新しい完了
+		"x done without date",         // 3: 完了日なし
+		"pending plain",               // 4: 未完了
+		"x 2026-06-10 recent done #2", // 5: 完了日が同じ → 原文順
+	)
+	indices := Apply(tasks, Criteria{ShowCompleted: true})
+	groups := GroupBy(tasks, indices, GroupFlat, SortCompletion)
+	if len(groups) != 1 {
+		t.Fatalf("flat should be 1 group, got %d", len(groups))
+	}
+	// 完了日の新しい順 → 日付なしの完了 → 未完了（原文順）
+	if !eqInts(groups[0].Indices, []int{2, 5, 1, 3, 0, 4}) {
+		t.Errorf("completion sorted = %v, want [2 5 1 3 0 4]", groups[0].Indices)
+	}
+}
+
+func TestSortKeyNext(t *testing.T) {
+	if SortPriority.Next() != SortCompletion {
+		t.Errorf("SortPriority.Next() = %v", SortPriority.Next())
+	}
+	if SortCompletion.Next() != SortPriority {
+		t.Errorf("SortCompletion.Next() = %v", SortCompletion.Next())
 	}
 }
 

@@ -17,6 +17,8 @@ type keyMap struct {
 	ClearFilter     key.Binding
 	Reload          key.Binding
 	Edit            key.Binding
+	EditLine        key.Binding
+	AddLine         key.Binding
 	Help            key.Binding
 	Quit            key.Binding
 }
@@ -78,6 +80,14 @@ func defaultKeys() keyMap {
 		Edit: key.NewBinding(
 			key.WithKeys("e"),
 			key.WithHelp("e", "エディタで開く"),
+		),
+		EditLine: key.NewBinding(
+			key.WithKeys("i", "enter"),
+			key.WithHelp("i", "行を編集"),
+		),
+		AddLine: key.NewBinding(
+			key.WithKeys("o"),
+			key.WithHelp("o", "タスク追加"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

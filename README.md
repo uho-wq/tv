@@ -31,6 +31,8 @@ If `path` is omitted, todo.txt is located in the following order of priority:
 | `↑`/`k`, `↓`/`j` | Move cursor |
 | `g` / `G` | Jump to top / bottom |
 | `x` / `Space` | Toggle completion (add/remove `x` + completion date) |
+| `i` / `Enter` | Edit the focused line in place (`enter` to save, `esc` to cancel) |
+| `o` | Add a new task at the end of the file (`enter` to save, `esc` to cancel) |
 | `a` | Archive all completed tasks to `archive.txt` |
 | `u` | Undo the last archive |
 | `f` / `/` | Filter input (`+proj @ctx (A) keyword`) |
@@ -39,5 +41,6 @@ If `path` is omitted, todo.txt is located in the following order of priority:
 | `s` | Toggle sort (priority ⇔ completed: most recently completed first) |
 | `c` | Show/hide completed tasks |
 | `r` | Reload file |
+| `e` | Open the file in `$EDITOR` (reloads on exit) |
 | `?` | Help |
 | `q` / `Ctrl+C` | Quit |

@@ -14,6 +14,7 @@ type mode int
 const (
 	modeNormal mode = iota
 	modeFilter
+	modeEdit
 )
 
 type rowKind int
@@ -45,8 +46,10 @@ type Model struct {
 	width  int
 	height int
 
-	mode  mode
-	input textinput.Model
+	mode      mode
+	input     textinput.Model
+	editInput textinput.Model
+	editIdx   int // 編集中タスクの file.Tasks インデックス
 
 	status    string
 	statusErr bool
@@ -64,14 +67,18 @@ func New(f *store.File) Model {
 	ti.Placeholder = "+project @context (A) keyword"
 	ti.Prompt = "filter> "
 
+	ei := textinput.New()
+	ei.Prompt = "edit> "
+
 	m := Model{
-		file:     f,
-		groupKey: filter.GroupByProject,
-		sortKey:  filter.SortPriority,
-		keys:     defaultKeys(),
-		st:       newStyles(),
-		input:    ti,
-		cursor:   -1,
+		file:      f,
+		groupKey:  filter.GroupByProject,
+		sortKey:   filter.SortPriority,
+		keys:      defaultKeys(),
+		st:        newStyles(),
+		input:     ti,
+		editInput: ei,
+		cursor:    -1,
 	}
 	m.rebuild()
 	return m
@@ -177,6 +184,19 @@ func (m *Model) cursorToEdge(dir int) {
 		}
 	}
 	m.ensureVisible()
+}
+
+// cursorToTask は file.Tasks インデックスが idx のタスク行へカーソルを移す。
+// 表示中に見つかれば true を返す（フィルタ等で非表示なら false でカーソルは動かさない）。
+func (m *Model) cursorToTask(idx int) bool {
+	for i, r := range m.rows {
+		if r.kind == rowTask && r.taskIdx == idx {
+			m.cursor = i
+			m.ensureVisible()
+			return true
+		}
+	}
+	return false
 }
 
 // selectedTaskIdx はカーソル位置のタスクの file.Tasks インデックスを返す（無ければ -1）。

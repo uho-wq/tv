@@ -26,6 +26,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.input.Width = msg.Width - len(m.input.Prompt) - 4
+		m.editInput.Width = msg.Width - len(m.editInput.Prompt) - 4
 		m.ensureVisible()
 		return m, nil
 
@@ -42,8 +43,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.mode == modeFilter {
+		switch m.mode {
+		case modeFilter:
 			return m.updateFilterMode(msg)
+		case modeEdit:
+			return m.updateEditMode(msg)
 		}
 		return m.updateNormalMode(msg)
 	}
@@ -112,6 +116,12 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Edit):
 		return m, m.openEditor()
 
+	case key.Matches(msg, m.keys.EditLine):
+		return m, m.startEditLine()
+
+	case key.Matches(msg, m.keys.AddLine):
+		return m, m.startAddLine()
+
 	case key.Matches(msg, m.keys.Undo):
 		m.undo()
 
@@ -150,6 +160,118 @@ func (m Model) updateFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
 	return m, cmd
+}
+
+// startEditLine はカーソル位置のタスクの原文を入力欄に載せ、行編集モードへ移る。
+func (m *Model) startEditLine() tea.Cmd {
+	idx := m.selectedTaskIdx()
+	if idx < 0 {
+		return nil
+	}
+	m.editIdx = idx
+	m.setEditPrompt("edit> ")
+	m.editInput.SetValue(m.file.Tasks[idx].Raw)
+	m.editInput.CursorEnd()
+	m.editInput.Focus()
+	m.mode = modeEdit
+	return textinput.Blink
+}
+
+// startAddLine は空の入力欄で行編集モードへ移る（editIdx = -1 が新規追加を表す）。
+func (m *Model) startAddLine() tea.Cmd {
+	m.editIdx = -1
+	m.setEditPrompt("add> ")
+	m.editInput.SetValue("")
+	m.editInput.Focus()
+	m.mode = modeEdit
+	return textinput.Blink
+}
+
+// setEditPrompt は入力欄のプロンプトを切り替え、幅を追随させる。
+func (m *Model) setEditPrompt(prompt string) {
+	m.editInput.Prompt = prompt
+	if m.width > 0 {
+		m.editInput.Width = m.width - len(prompt) - 4
+	}
+}
+
+func (m Model) updateEditMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		m.mode = modeNormal
+		m.editInput.Blur()
+		m.commitEditLine()
+		return m, nil
+
+	case "esc":
+		m.mode = modeNormal
+		m.editInput.Blur()
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.editInput, cmd = m.editInput.Update(msg)
+	return m, cmd
+}
+
+// commitEditLine は入力欄の内容を確定してファイルに保存する。
+// editIdx >= 0 なら既存タスクの差し替え、-1 なら末尾への新規追加。
+// 再パースにより優先度・project・context 等の構造化フィールドも追随する。
+func (m *Model) commitEditLine() {
+	if m.editIdx < 0 {
+		m.commitAddLine()
+		return
+	}
+
+	idx := m.editIdx
+	if idx >= len(m.file.Tasks) {
+		return
+	}
+	raw := m.editInput.Value()
+	if raw == m.file.Tasks[idx].Raw {
+		return
+	}
+	if strings.TrimSpace(raw) == "" {
+		m.setStatus("空の行にはできません", true)
+		return
+	}
+	if !m.guardExternalChange() {
+		return
+	}
+
+	m.file.Tasks[idx] = todotxt.ParseLine(raw, m.file.Tasks[idx].LineNo)
+	if err := m.file.Save(); err != nil {
+		m.setStatus(fmt.Sprintf("保存失敗: %v", err), true)
+		return
+	}
+	m.rebuild()
+	m.setStatus("行を更新しました", false)
+}
+
+// commitAddLine は入力欄の内容を新規タスクとして末尾に追加し、保存する。
+// 空入力は追加せず黙ってキャンセルする。
+func (m *Model) commitAddLine() {
+	raw := m.editInput.Value()
+	if strings.TrimSpace(raw) == "" {
+		return
+	}
+	if !m.guardExternalChange() {
+		return
+	}
+
+	newIdx := len(m.file.Tasks)
+	m.file.Tasks = append(m.file.Tasks, todotxt.ParseLine(raw, newIdx))
+	if err := m.file.Save(); err != nil {
+		m.file.Tasks = m.file.Tasks[:newIdx] // 保存できなかった行は残さない
+		m.setStatus(fmt.Sprintf("保存失敗: %v", err), true)
+		return
+	}
+	m.rebuild()
+	if !m.cursorToTask(newIdx) {
+		m.setStatus("タスクを追加しました  (フィルタにより非表示)", false)
+		return
+	}
+	m.setStatus("タスクを追加しました", false)
 }
 
 // toggleComplete はカーソル位置のタスクの完了状態を切り替え、ファイルに保存する。

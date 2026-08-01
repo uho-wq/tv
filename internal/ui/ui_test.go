@@ -262,6 +262,181 @@ func TestEditorFinishedError(t *testing.T) {
 	}
 }
 
+func TestEditLineFlow(t *testing.T) {
+	m, path := setup(t, "a +P\nb +P\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	// i で行編集モードへ。入力欄には原文が載る。
+	m, _ = update(m, runes("i"))
+	if m.mode != modeEdit {
+		t.Fatalf("mode = %v, want edit", m.mode)
+	}
+	if got := m.editInput.Value(); got != "a +P" {
+		t.Fatalf("editInput = %q, want %q", got, "a +P")
+	}
+
+	// " @home" を追記して enter で保存。
+	for _, r := range " @home" {
+		m, _ = update(m, runes(string(r)))
+	}
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if m.mode != modeNormal {
+		t.Fatalf("mode = %v, want normal", m.mode)
+	}
+	et := m.file.Tasks[0]
+	if et.Raw != "a +P @home" {
+		t.Errorf("Raw = %q, want %q", et.Raw, "a +P @home")
+	}
+	// 再パースで構造化フィールドも追随する。
+	if !et.HasContext("home") {
+		t.Errorf("contexts not reparsed: %+v", et.Contexts)
+	}
+	// ファイルに反映され、他の行は不変。
+	if got := readFile(t, path); got != "a +P @home\nb +P\n" {
+		t.Errorf("file = %q, want %q", got, "a +P @home\nb +P\n")
+	}
+}
+
+func TestEditLineEscCancels(t *testing.T) {
+	m, path := setup(t, "a\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	m, _ = update(m, runes("i"))
+	for _, r := range " changed" {
+		m, _ = update(m, runes(string(r)))
+	}
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEsc})
+
+	if m.mode != modeNormal {
+		t.Fatalf("mode = %v, want normal", m.mode)
+	}
+	if m.file.Tasks[0].Raw != "a" {
+		t.Errorf("Raw = %q, want unchanged %q", m.file.Tasks[0].Raw, "a")
+	}
+	if got := readFile(t, path); got != "a\n" {
+		t.Errorf("file = %q, want unchanged", got)
+	}
+}
+
+func TestEditLineRejectsEmpty(t *testing.T) {
+	m, path := setup(t, "a\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	m, _ = update(m, runes("i"))
+	m.editInput.SetValue("")
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if !m.statusErr {
+		t.Errorf("空行への編集はエラー status になるべき")
+	}
+	if got := readFile(t, path); got != "a\n" {
+		t.Errorf("file = %q, want unchanged", got)
+	}
+}
+
+func TestAddLineFlow(t *testing.T) {
+	m, path := setup(t, "a\nb\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	// o で追加モードへ。入力欄は空。
+	m, _ = update(m, runes("o"))
+	if m.mode != modeEdit {
+		t.Fatalf("mode = %v, want edit", m.mode)
+	}
+	if got := m.editInput.Value(); got != "" {
+		t.Fatalf("editInput = %q, want empty", got)
+	}
+	if got := m.editInput.Prompt; got != "add> " {
+		t.Errorf("prompt = %q, want %q", got, "add> ")
+	}
+
+	for _, r := range "new task +P" {
+		m, _ = update(m, runes(string(r)))
+	}
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if m.mode != modeNormal {
+		t.Fatalf("mode = %v, want normal", m.mode)
+	}
+	// ファイル末尾に追記され、既存行は不変。
+	if got := readFile(t, path); got != "a\nb\nnew task +P\n" {
+		t.Errorf("file = %q, want %q", got, "a\nb\nnew task +P\n")
+	}
+	// カーソルは追加したタスクを指す。
+	idx := m.selectedTaskIdx()
+	if idx < 0 || m.file.Tasks[idx].Raw != "new task +P" {
+		t.Errorf("cursor not on new task: idx=%d", idx)
+	}
+}
+
+func TestAddLineEmptyCancels(t *testing.T) {
+	m, path := setup(t, "a\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	m, _ = update(m, runes("o"))
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if m.mode != modeNormal {
+		t.Fatalf("mode = %v, want normal", m.mode)
+	}
+	if m.statusErr {
+		t.Errorf("空入力の追加はエラーにせずキャンセル扱い: %q", m.status)
+	}
+	if got := readFile(t, path); got != "a\n" {
+		t.Errorf("file = %q, want unchanged", got)
+	}
+}
+
+func TestAddLinePromptRestoredOnEdit(t *testing.T) {
+	m, _ := setup(t, "a\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	// o → esc の後に i で編集すると、プロンプトは edit> に戻る。
+	m, _ = update(m, runes("o"))
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = update(m, runes("i"))
+	if got := m.editInput.Prompt; got != "edit> " {
+		t.Errorf("prompt = %q, want %q", got, "edit> ")
+	}
+	if got := m.editInput.Value(); got != "a" {
+		t.Errorf("editInput = %q, want %q", got, "a")
+	}
+}
+
+func TestEditLineDetectsExternalChange(t *testing.T) {
+	m, path := setup(t, "a\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	m, _ = update(m, runes("i"))
+
+	// 編集中に外部から書き換え。
+	if err := os.WriteFile(path, []byte("a\nb\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(time.Hour)
+	_ = os.Chtimes(path, future, future)
+
+	for _, r := range "!" {
+		m, _ = update(m, runes(string(r)))
+	}
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if !m.statusErr {
+		t.Errorf("外部変更の警告が出るべき, status=%q", m.status)
+	}
+	if got := readFile(t, path); got != "a\nb\n" {
+		t.Errorf("todo.txt was overwritten: %q", got)
+	}
+}
+
 func TestWriteDetectsExternalChange(t *testing.T) {
 	m, path := setup(t, "a\nb\n")
 	m.groupKey = filter.GroupFlat

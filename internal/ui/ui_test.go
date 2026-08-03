@@ -181,12 +181,37 @@ func TestCopyTaskError(t *testing.T) {
 
 func TestGroupToggle(t *testing.T) {
 	m, _ := setup(t, "a +P @x\n")
-	if m.groupKey != filter.GroupByProject {
-		t.Fatalf("initial group = %v, want project", m.groupKey)
+	if m.groupKey != filter.GroupFlat {
+		t.Fatalf("initial group = %v, want flat (起動時はグルーピングしない)", m.groupKey)
 	}
 	m, _ = update(m, tea.KeyMsg{Type: tea.KeyTab})
-	if m.groupKey != filter.GroupByContext {
-		t.Errorf("after tab group = %v, want context", m.groupKey)
+	if m.groupKey != filter.GroupByProject {
+		t.Errorf("after tab group = %v, want project", m.groupKey)
+	}
+}
+
+func TestGroupHeaderVisibleAtTop(t *testing.T) {
+	// WindowSizeMsg 前 (表示高さ 1 扱い) にグルーピング済みで rebuild されると、
+	// offset が先頭見出しを飛ばした位置に固定される旧バグのリグレッションテスト。
+	dir := t.TempDir()
+	path := filepath.Join(dir, "todo.txt")
+	if err := os.WriteFile(path, []byte("a +P\nb +P\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := store.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(f)
+	m.groupKey = filter.GroupByProject
+	m.rebuild() // height=0 のままグルーピング
+
+	m, _ = update(m, tea.WindowSizeMsg{Width: 80, Height: 24})
+	if m.offset != 0 {
+		t.Errorf("offset = %d, want 0 (先頭のグループ見出しが見えるべき)", m.offset)
+	}
+	if out := m.View(); !strings.Contains(out, "+P (2)") {
+		t.Errorf("view missing first group header:\n%s", out)
 	}
 }
 

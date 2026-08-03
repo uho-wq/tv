@@ -37,7 +37,9 @@ func (m Model) renderHeader() string {
 	meta := []string{
 		shortenPath(m.file.Path),
 		fmt.Sprintf("%d tasks", m.taskCount()),
-		"group:" + groupLabel(m.groupKey),
+	}
+	if m.groupKey != filter.GroupFlat {
+		meta = append(meta, "group:"+groupLabel(m.groupKey))
 	}
 	if m.sortKey != filter.SortPriority {
 		meta = append(meta, "sort:"+sortLabel(m.sortKey))
@@ -139,7 +141,7 @@ func (m Model) renderFooter() string {
 		return clip.Render(st.Render(m.status))
 	}
 
-	keybar := "j/k 移動 · x 完了 · i 行編集 · o 追加 · ^o コピー · a アーカイブ · f フィルタ · tab グループ · s ソート · c 完了表示 · u 取消 · r 再読込 · e 編集 · ? ヘルプ · q 終了"
+	keybar := "? ヘルプ"
 	return clip.Render(m.st.footer.Render(keybar))
 }
 
@@ -159,7 +161,7 @@ func (m Model) renderHelp() string {
 		"  u             直前のアーカイブを取り消し",
 		"  f / /         フィルタ入力 (+proj @ctx (A) keyword)",
 		"  esc           フィルタ解除",
-		"  tab           グルーピング切替 (project→context→priority→flat)",
+		"  tab           グルーピング切替 (flat→project→context→priority)",
 		"  s             ソート切替 (priority⇔completed: 完了日の新しい順)",
 		"  c             完了タスクの表示/非表示",
 		"  r             ファイル再読込",

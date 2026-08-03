@@ -75,7 +75,7 @@ func New(f *store.File) Model {
 
 	m := Model{
 		file:      f,
-		groupKey:  filter.GroupByProject,
+		groupKey:  filter.GroupFlat,
 		sortKey:   filter.SortPriority,
 		keys:      defaultKeys(),
 		st:        newStyles(),
@@ -233,6 +233,10 @@ func (m *Model) ensureVisible() {
 	bh := m.bodyHeight()
 	if m.cursor < m.offset {
 		m.offset = m.cursor
+	}
+	// カーソルが表示先頭のタスク行で、直上がグループ見出しなら見出しも表示に含める。
+	if m.cursor == m.offset && m.cursor > 0 && m.rows[m.cursor-1].kind == rowHeader {
+		m.offset = m.cursor - 1
 	}
 	if m.cursor >= m.offset+bh {
 		m.offset = m.cursor - bh + 1

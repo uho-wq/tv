@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -56,6 +57,8 @@ type Model struct {
 
 	lastArchive []string // 直前のアーカイブ行（undo 用）
 
+	copyText func(string) error // クリップボード書き込み（テストで差し替え可能）
+
 	help bool
 	keys keyMap
 	st   styles
@@ -79,6 +82,7 @@ func New(f *store.File) Model {
 		input:     ti,
 		editInput: ei,
 		cursor:    -1,
+		copyText:  clipboard.WriteAll,
 	}
 	m.rebuild()
 	return m

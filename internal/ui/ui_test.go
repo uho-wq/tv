@@ -139,6 +139,46 @@ func TestArchiveWithoutCompletedIsNoop(t *testing.T) {
 	}
 }
 
+func TestCopyTask(t *testing.T) {
+	m, _ := setup(t, "a +P\n(A) b @home\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	// クリップボードは環境依存なのでフェイクに差し替える。
+	var copied string
+	m.copyText = func(s string) error {
+		copied = s
+		return nil
+	}
+
+	// priority ソートで (A) b @home が先頭。↓ で a +P へ移動し、ctrl+o でコピー。
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyDown})
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyCtrlO})
+
+	if copied != "a +P" {
+		t.Errorf("copied = %q, want %q", copied, "a +P")
+	}
+	if m.statusErr {
+		t.Errorf("unexpected error status: %q", m.status)
+	}
+	if !strings.Contains(m.status, "コピー") {
+		t.Errorf("status = %q, want copy message", m.status)
+	}
+}
+
+func TestCopyTaskError(t *testing.T) {
+	m, _ := setup(t, "a\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	m.copyText = func(string) error { return os.ErrPermission }
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyCtrlO})
+
+	if !m.statusErr {
+		t.Errorf("コピー失敗時はエラー status になるべき: %q", m.status)
+	}
+}
+
 func TestGroupToggle(t *testing.T) {
 	m, _ := setup(t, "a +P @x\n")
 	if m.groupKey != filter.GroupByProject {

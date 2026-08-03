@@ -19,6 +19,7 @@ type keyMap struct {
 	Edit            key.Binding
 	EditLine        key.Binding
 	AddLine         key.Binding
+	Copy            key.Binding
 	Help            key.Binding
 	Quit            key.Binding
 }
@@ -88,6 +89,10 @@ func defaultKeys() keyMap {
 		AddLine: key.NewBinding(
 			key.WithKeys("o"),
 			key.WithHelp("o", "タスク追加"),
+		),
+		Copy: key.NewBinding(
+			key.WithKeys("ctrl+o"),
+			key.WithHelp("ctrl+o", "コピー"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

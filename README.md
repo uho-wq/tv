@@ -33,6 +33,7 @@ If `path` is omitted, todo.txt is located in the following order of priority:
 | `x` / `Space` | Toggle completion (add/remove `x` + completion date) |
 | `i` / `Enter` | Edit the focused line in place (`enter` to save, `esc` to cancel) |
 | `o` | Add a new task at the end of the file (`enter` to save, `esc` to cancel) |
+| `Ctrl+O` | Copy the focused task's raw text to the clipboard |
 | `a` | Archive all completed tasks to `archive.txt` |
 | `u` | Undo the last archive |
 | `f` / `/` | Filter input (`+proj @ctx (A) keyword`) |

@@ -139,7 +139,7 @@ func (m Model) renderFooter() string {
 		return clip.Render(st.Render(m.status))
 	}
 
-	keybar := "j/k 移動 · x 完了 · i 行編集 · o 追加 · a アーカイブ · f フィルタ · tab グループ · s ソート · c 完了表示 · u 取消 · r 再読込 · e 編集 · ? ヘルプ · q 終了"
+	keybar := "j/k 移動 · x 完了 · i 行編集 · o 追加 · ^o コピー · a アーカイブ · f フィルタ · tab グループ · s ソート · c 完了表示 · u 取消 · r 再読込 · e 編集 · ? ヘルプ · q 終了"
 	return clip.Render(m.st.footer.Render(keybar))
 }
 
@@ -154,6 +154,7 @@ func (m Model) renderHelp() string {
 		"  x / Space     完了トグル (x + 完了日を付与/除去。行は残る)",
 		"  i / Enter     カーソル行をその場で編集 (enter 保存 / esc 取消)",
 		"  o             新規タスクを末尾に追加 (enter 保存 / esc 取消)",
+		"  Ctrl+O        カーソル行の原文をクリップボードへコピー",
 		"  a             完了済みタスクを archive.txt へ一括移動",
 		"  u             直前のアーカイブを取り消し",
 		"  f / /         フィルタ入力 (+proj @ctx (A) keyword)",

@@ -122,6 +122,9 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.AddLine):
 		return m, m.startAddLine()
 
+	case key.Matches(msg, m.keys.Copy):
+		m.copyTask()
+
 	case key.Matches(msg, m.keys.Undo):
 		m.undo()
 
@@ -272,6 +275,19 @@ func (m *Model) commitAddLine() {
 		return
 	}
 	m.setStatus("タスクを追加しました", false)
+}
+
+// copyTask はカーソル位置のタスクの原文をクリップボードへコピーする。
+func (m *Model) copyTask() {
+	idx := m.selectedTaskIdx()
+	if idx < 0 {
+		return
+	}
+	if err := m.copyText(m.file.Tasks[idx].Raw); err != nil {
+		m.setStatus(fmt.Sprintf("コピー失敗: %v", err), true)
+		return
+	}
+	m.setStatus("タスクをコピーしました", false)
 }
 
 // toggleComplete はカーソル位置のタスクの完了状態を切り替え、ファイルに保存する。

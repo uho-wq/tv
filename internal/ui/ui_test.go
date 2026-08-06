@@ -139,6 +139,89 @@ func TestArchiveWithoutCompletedIsNoop(t *testing.T) {
 	}
 }
 
+func TestDeleteViaKey(t *testing.T) {
+	m, path := setup(t, "a\nb\nc\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	// カーソルを b へ移して d
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyDown})
+	m, _ = update(m, runes("d"))
+
+	if got := readFile(t, path); got != "a\nc\n" {
+		t.Fatalf("after delete todo = %q, want %q", got, "a\nc\n")
+	}
+	if m.statusErr {
+		t.Errorf("unexpected error status: %q", m.status)
+	}
+	// カーソルは同じ序数 = 次のタスク (c) に留まる。
+	if got := m.file.Tasks[m.selectedTaskIdx()].Raw; got != "c" {
+		t.Errorf("cursor on %q, want c", got)
+	}
+}
+
+func TestDeleteUndoRestoresPosition(t *testing.T) {
+	m, path := setup(t, "a\nb\nc\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyDown})
+	m, _ = update(m, runes("d"))
+	m, _ = update(m, runes("u"))
+
+	if got := readFile(t, path); got != "a\nb\nc\n" {
+		t.Fatalf("after undo todo = %q, want %q", got, "a\nb\nc\n")
+	}
+	// 復元した行にカーソルが戻る。
+	if got := m.file.Tasks[m.selectedTaskIdx()].Raw; got != "b" {
+		t.Errorf("cursor on %q, want b", got)
+	}
+	// 二度目の u は取り消し対象なし。
+	m, _ = update(m, runes("u"))
+	if !m.statusErr {
+		t.Errorf("expected warning on second undo, status=%q", m.status)
+	}
+}
+
+func TestDeleteLastTaskLeavesEmptyList(t *testing.T) {
+	m, path := setup(t, "only\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	m, _ = update(m, runes("d"))
+	if got := readFile(t, path); got != "" {
+		t.Fatalf("after delete todo = %q, want empty", got)
+	}
+	if m.selectedTaskIdx() != -1 {
+		t.Errorf("cursor should be invalid, got %d", m.selectedTaskIdx())
+	}
+	// タスクが無い状態でも d は何もしない（パニックしない）。
+	m, _ = update(m, runes("d"))
+	if got := readFile(t, path); got != "" {
+		t.Errorf("todo.txt changed: %q", got)
+	}
+}
+
+func TestDeleteDetectsExternalChange(t *testing.T) {
+	m, path := setup(t, "a\nb\n")
+	m.groupKey = filter.GroupFlat
+	m.rebuild()
+
+	if err := os.WriteFile(path, []byte("a\nb\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(time.Hour)
+	_ = os.Chtimes(path, future, future)
+
+	m, _ = update(m, runes("d"))
+	if !m.statusErr {
+		t.Errorf("expected external change warning, status=%q", m.status)
+	}
+	if got := readFile(t, path); got != "a\nb\nc\n" {
+		t.Errorf("todo.txt was overwritten: %q", got)
+	}
+}
+
 func TestCopyTask(t *testing.T) {
 	m, _ := setup(t, "a +P\n(A) b @home\n")
 	m.groupKey = filter.GroupFlat

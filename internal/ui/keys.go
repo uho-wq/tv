@@ -8,6 +8,7 @@ type keyMap struct {
 	Top             key.Binding
 	Bottom          key.Binding
 	Complete        key.Binding
+	Delete          key.Binding
 	Archive         key.Binding
 	Undo            key.Binding
 	Group           key.Binding
@@ -45,6 +46,10 @@ func defaultKeys() keyMap {
 		Complete: key.NewBinding(
 			key.WithKeys("x", " "),
 			key.WithHelp("x", "完了トグル"),
+		),
+		Delete: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "削除"),
 		),
 		Archive: key.NewBinding(
 			key.WithKeys("a"),

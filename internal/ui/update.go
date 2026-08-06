@@ -131,6 +131,9 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Complete):
 		m.toggleComplete()
 
+	case key.Matches(msg, m.keys.Delete):
+		m.deleteTask()
+
 	case key.Matches(msg, m.keys.Archive):
 		m.archive()
 	}
@@ -321,6 +324,30 @@ func (m *Model) toggleComplete() {
 	}
 }
 
+// deleteTask はカーソル位置のタスクを todo.txt から削除する。
+// アーカイブ (a) と違い archive.txt には残らないため、直前の 1 件だけ原文と位置を
+// 保持し、u で元の位置に復元できるようにする。
+func (m *Model) deleteTask() {
+	idx := m.selectedTaskIdx()
+	if idx < 0 {
+		return
+	}
+	if !m.guardExternalChange() {
+		return
+	}
+
+	raw, err := m.file.Delete(idx)
+	if err != nil {
+		m.setStatus(fmt.Sprintf("削除失敗: %v", err), true)
+		return
+	}
+	m.lastOp = undoDelete
+	m.lastDelete = raw
+	m.lastDeleteIdx = idx
+	m.rebuild() // カーソルは同じ序数に留まる = 次のタスクを指す
+	m.setStatus("タスクを削除しました  (u で取消)", false)
+}
+
 // archive は完了済みタスクをすべて archive.txt へ「行そのまま」移動する。
 func (m *Model) archive() {
 	var idxs []int
@@ -342,6 +369,7 @@ func (m *Model) archive() {
 		m.setStatus(fmt.Sprintf("アーカイブ失敗: %v", err), true)
 		return
 	}
+	m.lastOp = undoArchive
 	m.lastArchive = archived
 	m.rebuild()
 	m.setStatus(fmt.Sprintf("%d件をアーカイブしました  (u で取消)", len(archived)), false)
@@ -362,20 +390,52 @@ func (m *Model) guardExternalChange() bool {
 	return true
 }
 
-// undo は直前のアーカイブを取り消す。
+// undo は直前のアーカイブまたは削除を取り消す。
+// どちらも todo.txt を書き戻すため、先に外部変更を検知する。
 func (m *Model) undo() {
-	if len(m.lastArchive) == 0 {
-		m.setStatus("取り消せるアーカイブがありません", true)
+	if m.lastOp == undoNone {
+		m.setStatus("取り消せる操作がありません", true)
 		return
 	}
+	if !m.guardExternalChange() {
+		return
+	}
+	if m.lastOp == undoDelete {
+		m.undoDelete()
+		return
+	}
+	m.undoArchive()
+}
+
+// undoArchive は直前のアーカイブを取り消す。復元行は todo.txt の末尾に戻る。
+func (m *Model) undoArchive() {
 	if err := m.file.UndoArchive(m.lastArchive); err != nil {
 		m.setStatus(fmt.Sprintf("取消失敗: %v", err), true)
 		return
 	}
+	m.lastOp = undoNone
 	m.lastArchive = nil
 	m.rebuild()
 	m.cursorToEdge(1) // 復元タスクは末尾に戻る
 	m.setStatus("アーカイブを取り消しました", false)
+}
+
+// undoDelete は直前の削除を取り消し、元の位置に行を戻す。
+// 削除後に他の行を追加/削除していた場合、位置は目安であり原文の復元のみを保証する。
+func (m *Model) undoDelete() {
+	idx := m.lastDeleteIdx
+	if err := m.file.Insert(idx, m.lastDelete); err != nil {
+		m.setStatus(fmt.Sprintf("取消失敗: %v", err), true)
+		return
+	}
+	m.lastOp = undoNone
+	m.lastDelete = ""
+	m.rebuild()
+	if !m.cursorToTask(idx) {
+		m.setStatus("削除を取り消しました  (フィルタにより非表示)", false)
+		return
+	}
+	m.setStatus("削除を取り消しました", false)
 }
 
 // openEditor は表示中のファイルを外部エディタで開く tea.Cmd を返す。
@@ -411,7 +471,9 @@ func (m *Model) reload() {
 		return
 	}
 	m.file = nf
+	m.lastOp = undoNone
 	m.lastArchive = nil
+	m.lastDelete = ""
 	m.rebuild()
 	m.setStatus("再読込しました", false)
 }

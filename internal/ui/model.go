@@ -18,6 +18,16 @@ const (
 	modeEdit
 )
 
+// undoOp は u で取り消せる「直前の操作」の種類。
+// アーカイブと削除で復元手順が異なるため、どちらが直近かを保持する。
+type undoOp int
+
+const (
+	undoNone undoOp = iota
+	undoArchive
+	undoDelete
+)
+
 type rowKind int
 
 const (
@@ -55,7 +65,10 @@ type Model struct {
 	status    string
 	statusErr bool
 
-	lastArchive []string // 直前のアーカイブ行（undo 用）
+	lastOp        undoOp   // 直前の取り消し可能な操作
+	lastArchive   []string // undoArchive: 直前のアーカイブ行
+	lastDelete    string   // undoDelete: 直前に削除した行の原文
+	lastDeleteIdx int      // undoDelete: 削除前の file.Tasks インデックス
 
 	copyText func(string) error // クリップボード書き込み（テストで差し替え可能）
 

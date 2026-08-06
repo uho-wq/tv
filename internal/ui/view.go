@@ -157,8 +157,9 @@ func (m Model) renderHelp() string {
 		"  i / Enter     カーソル行をその場で編集 (enter 保存 / esc 取消)",
 		"  o             新規タスクを末尾に追加 (enter 保存 / esc 取消)",
 		"  Ctrl+O        カーソル行の原文をクリップボードへコピー",
+		"  d             カーソル行を削除 (u で取消)",
 		"  a             完了済みタスクを archive.txt へ一括移動",
-		"  u             直前のアーカイブを取り消し",
+		"  u             直前の削除/アーカイブを取り消し",
 		"  f / /         フィルタ入力 (+proj @ctx (A) keyword)",
 		"  esc           フィルタ解除",
 		"  tab           グルーピング切替 (flat→project→context→priority)",
@@ -170,8 +171,8 @@ func (m Model) renderHelp() string {
 		"  q / Ctrl+C    終了",
 		"",
 		"  完了 (x) … todo.txt 内で完了マークを付ける/外す。",
-		"  アーカイブ (a) … 完了済みの行を原文のまま archive.txt へ",
-		"      移動し、todo.txt からは削除する。",
+		"  アーカイブ (a) … 完了行を原文のまま archive.txt へ移動する。",
+		"  削除 (d) … 行を消す。archive.txt には残らず、直後の u でのみ復元。",
 	}
 	return padLines(help, bh)
 }

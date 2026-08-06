@@ -136,6 +136,36 @@ func (f *File) Archive(indices ...int) ([]string, error) {
 	return archived, nil
 }
 
+// Delete は idx のタスクを todo.txt から取り除いて保存し、削除した原文を返す。
+// archive.txt には残さないため、取り消しは Insert で行う（呼び出し側が原文を保持する）。
+// 保存に失敗した場合は Tasks を元に戻し、ファイルとメモリの状態を一致させる。
+func (f *File) Delete(idx int) (string, error) {
+	if idx < 0 || idx >= len(f.Tasks) {
+		return "", fmt.Errorf("インデックスが範囲外です: %d", idx)
+	}
+	removed := f.Tasks[idx]
+	f.Tasks = slices.Delete(f.Tasks, idx, idx+1)
+	if err := f.Save(); err != nil {
+		f.Tasks = slices.Insert(f.Tasks, idx, removed)
+		return "", err
+	}
+	return removed.Raw, nil
+}
+
+// Insert は raw をパースして idx の位置に挿入し、保存する（Delete の取り消し用）。
+// idx が範囲外なら末尾に追加する。
+func (f *File) Insert(idx int, raw string) error {
+	if idx < 0 || idx > len(f.Tasks) {
+		idx = len(f.Tasks)
+	}
+	f.Tasks = slices.Insert(f.Tasks, idx, todotxt.ParseLine(raw, idx))
+	if err := f.Save(); err != nil {
+		f.Tasks = slices.Delete(f.Tasks, idx, idx+1)
+		return err
+	}
+	return nil
+}
+
 // UndoArchive は直前の Archive を取り消す。archive.txt の末尾から count 行を
 // 取り除き、それらの行を todo.txt の末尾に戻して保存する。
 // archive.txt の末尾が想定（want）と一致しない場合はエラーを返す（外部変更検知）。

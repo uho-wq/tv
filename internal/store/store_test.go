@@ -40,6 +40,74 @@ func TestLoadSaveRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDeleteAndInsert(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "todo.txt")
+	writeFile(t, path, "a\nb\nc\n")
+
+	f, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := f.Delete(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw != "b" {
+		t.Errorf("deleted raw = %q, want %q", raw, "b")
+	}
+	if got := readFile(t, path); got != "a\nc\n" {
+		t.Errorf("after delete = %q, want %q", got, "a\nc\n")
+	}
+
+	// 元の位置へ戻す。
+	if err := f.Insert(1, raw); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, path); got != "a\nb\nc\n" {
+		t.Errorf("after insert = %q, want %q", got, "a\nb\nc\n")
+	}
+	// 再パースされ、構造化フィールドが復元されていること。
+	if f.Tasks[1].Raw != "b" {
+		t.Errorf("restored task = %+v", f.Tasks[1])
+	}
+}
+
+func TestDeleteOutOfRange(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "todo.txt")
+	writeFile(t, path, "a\n")
+
+	f, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Delete(5); err == nil {
+		t.Errorf("expected error for out-of-range index")
+	}
+	if got := readFile(t, path); got != "a\n" {
+		t.Errorf("file changed: %q", got)
+	}
+}
+
+func TestInsertBeyondEndAppends(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "todo.txt")
+	writeFile(t, path, "a\n")
+
+	f, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Insert(99, "z"); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, path); got != "a\nz\n" {
+		t.Errorf("after insert = %q, want %q", got, "a\nz\n")
+	}
+}
+
 func TestArchive(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "todo.txt")

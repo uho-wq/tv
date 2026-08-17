@@ -39,6 +39,8 @@ If `path` is omitted, todo.txt is located in the following order of priority:
 | `u` | Undo the last delete or archive |
 | `f` / `/` | Filter input (`+proj @ctx (A) keyword`) |
 | `esc` | Clear filter |
+| `p` | Toggle the two-pane view (left: groups, right: tasks). Tasks with a project are grouped by `+project`; tasks without one are grouped by `@context`; the rest go to `(other)` |
+| `h` / `l` | Move focus between panes (two-pane view; `tab` also toggles focus) |
 | `tab` | Switch grouping (flat → project → context → priority) |
 | `s` | Toggle sort (priority ⇔ completed: most recently completed first) |
 | `c` | Show/hide completed tasks |

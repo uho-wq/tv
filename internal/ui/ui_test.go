@@ -335,6 +335,134 @@ func TestToggleCompleted(t *testing.T) {
 	}
 }
 
+func TestPaneToggle(t *testing.T) {
+	m, _ := setup(t, "a +Work\nb @errand\nc\n")
+
+	m, _ = update(m, runes("p"))
+	if !m.pane {
+		t.Fatalf("pane mode not enabled")
+	}
+	if m.paneFocus != paneSidebar {
+		t.Errorf("paneFocus = %v, want sidebar", m.paneFocus)
+	}
+	// サイドバー: +Work / @errand / (other)
+	titles := make([]string, len(m.paneGroups))
+	for i, g := range m.paneGroups {
+		titles[i] = g.Title
+	}
+	want := []string{"+Work", "@errand", "(other)"}
+	if strings.Join(titles, ",") != strings.Join(want, ",") {
+		t.Errorf("paneGroups = %v, want %v", titles, want)
+	}
+	// リストは先頭グループ (+Work) のタスクのみ。
+	if len(m.rows) != 1 || m.file.Tasks[m.rows[0].taskIdx].Raw != "a +Work" {
+		t.Errorf("rows = %+v, want only 'a +Work'", m.rows)
+	}
+	// 描画にサイドバーとセパレータが含まれる。
+	out := m.View()
+	for _, s := range []string{"+Work (1)", "@errand (1)", "(other) (1)", "│"} {
+		if !strings.Contains(out, s) {
+			t.Errorf("view missing %q:\n%s", s, out)
+		}
+	}
+
+	// もう一度 p で通常表示へ戻る。
+	m, _ = update(m, runes("p"))
+	if m.pane {
+		t.Errorf("pane mode not disabled")
+	}
+}
+
+func TestPaneSidebarNavigation(t *testing.T) {
+	m, _ := setup(t, "a +Work\nb @errand\nc @errand\n")
+	m, _ = update(m, runes("p"))
+
+	// j で @errand グループへ。リストが追従する。
+	m, _ = update(m, runes("j"))
+	if got := m.paneGroups[m.paneSel].Title; got != "@errand" {
+		t.Fatalf("selected group = %q, want @errand", got)
+	}
+	if len(m.rows) != 2 {
+		t.Fatalf("rows = %d, want 2 (@errand のタスク)", len(m.rows))
+	}
+	// カーソルは新グループの先頭タスク。
+	if got := m.file.Tasks[m.selectedTaskIdx()].Raw; got != "b @errand" {
+		t.Errorf("cursor on %q, want 'b @errand'", got)
+	}
+
+	// enter でリストへフォーカス移動し、j はタスクカーソルを動かす。
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.paneFocus != paneList {
+		t.Fatalf("paneFocus = %v, want list", m.paneFocus)
+	}
+	m, _ = update(m, runes("j"))
+	if got := m.file.Tasks[m.selectedTaskIdx()].Raw; got != "c @errand" {
+		t.Errorf("cursor on %q, want 'c @errand'", got)
+	}
+
+	// h でサイドバーへ戻り、tab でもフォーカスが切り替わる。
+	m, _ = update(m, runes("h"))
+	if m.paneFocus != paneSidebar {
+		t.Errorf("after h paneFocus = %v, want sidebar", m.paneFocus)
+	}
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyTab})
+	if m.paneFocus != paneList {
+		t.Errorf("after tab paneFocus = %v, want list", m.paneFocus)
+	}
+}
+
+func TestPaneCompleteKeepsGroupSelection(t *testing.T) {
+	m, path := setup(t, "a +Work\nb @errand\nc @errand\n")
+	m, _ = update(m, runes("p"))
+	m, _ = update(m, runes("j")) // @errand へ
+	m, _ = update(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	// x で b を完了。グループ選択は @errand のまま、リストから消える。
+	m, _ = update(m, runes("x"))
+	if got := m.paneGroups[m.paneSel].Title; got != "@errand" {
+		t.Errorf("selected group = %q, want @errand", got)
+	}
+	if len(m.rows) != 1 || m.file.Tasks[m.rows[0].taskIdx].Raw != "c @errand" {
+		t.Errorf("rows should hold only 'c @errand': %+v", m.rows)
+	}
+	if !strings.Contains(readFile(t, path), "x ") {
+		t.Errorf("file missing completed line")
+	}
+}
+
+func TestPaneGroupDisappearsClampsSelection(t *testing.T) {
+	m, _ := setup(t, "a +Work\nb @errand\n")
+	m, _ = update(m, runes("p"))
+	m, _ = update(m, runes("j")) // @errand へ
+
+	// @errand 唯一のタスクを削除するとグループが消え、選択はクランプされる。
+	m, _ = update(m, runes("d"))
+	if len(m.paneGroups) != 1 {
+		t.Fatalf("paneGroups = %+v, want only +Work", m.paneGroups)
+	}
+	if got := m.paneGroups[m.paneSel].Title; got != "+Work" {
+		t.Errorf("selected group = %q, want +Work", got)
+	}
+	if got := m.file.Tasks[m.selectedTaskIdx()].Raw; got != "a +Work" {
+		t.Errorf("cursor on %q, want 'a +Work'", got)
+	}
+}
+
+func TestPaneEmptyFile(t *testing.T) {
+	m, _ := setup(t, "")
+	m, _ = update(m, runes("p"))
+	if len(m.paneGroups) != 0 {
+		t.Errorf("paneGroups = %+v, want empty", m.paneGroups)
+	}
+	// 空でもパニックせず描画できる。
+	if out := m.View(); !strings.Contains(out, "グループなし") {
+		t.Errorf("view missing empty sidebar message:\n%s", out)
+	}
+	// 空のままサイドバー操作してもパニックしない。
+	m, _ = update(m, runes("j"))
+	m, _ = update(m, runes("G"))
+}
+
 func TestViewRenders(t *testing.T) {
 	m, _ := setup(t, "(A) important +Proj @ctx due:2026-06-30\n")
 	out := m.View()

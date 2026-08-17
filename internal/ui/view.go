@@ -38,7 +38,9 @@ func (m Model) renderHeader() string {
 		shortenPath(m.file.Path),
 		fmt.Sprintf("%d tasks", m.taskCount()),
 	}
-	if m.groupKey != filter.GroupFlat {
+	if m.pane {
+		meta = append(meta, "pane")
+	} else if m.groupKey != filter.GroupFlat {
 		meta = append(meta, "group:"+groupLabel(m.groupKey))
 	}
 	if m.sortKey != filter.SortPriority {
@@ -57,6 +59,10 @@ func (m Model) renderHeader() string {
 }
 
 func (m Model) renderBody() string {
+	if m.pane {
+		return m.renderPaneBody()
+	}
+
 	bh := m.bodyHeight()
 	clip := lipgloss.NewStyle().MaxWidth(m.width)
 
@@ -79,6 +85,99 @@ func (m Model) renderBody() string {
 		}
 	}
 	return padLines(lines, bh)
+}
+
+// renderPaneBody は 2 ペイン表示（左: グループ, 右: タスク）を描画する。
+func (m Model) renderPaneBody() string {
+	bh := m.bodyHeight()
+	sw := m.sidebarWidth()
+	lw := m.width - sw - 3 // セパレータ " │ " の分
+	if lw < 1 {
+		lw = 1
+	}
+
+	side := m.renderSidebarLines(sw, bh)
+	list := m.renderListLines(lw, bh)
+
+	sep := m.st.paneSep.Render("│")
+	lines := make([]string, bh)
+	for i := range bh {
+		lines[i] = side[i] + " " + sep + " " + list[i]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// sidebarWidth はサイドバーの表示幅を返す。画面の 1/4 を基本に上下限を設ける。
+func (m Model) sidebarWidth() int {
+	w := m.width / 4
+	w = max(w, 14)
+	w = min(w, 28)
+	// 端末が極端に狭い場合はさらに半分へ。
+	if w > m.width/2 {
+		w = m.width / 2
+	}
+	return max(w, 1)
+}
+
+// renderSidebarLines はサイドバー（グループ一覧）を bh 行ぶん描画する。
+func (m Model) renderSidebarLines(sw, bh int) []string {
+	pad := lipgloss.NewStyle().Width(sw).MaxWidth(sw)
+	lines := make([]string, 0, bh)
+
+	if len(m.paneGroups) == 0 {
+		lines = append(lines, pad.Render("  (グループなし)"))
+	}
+	end := min(m.paneOffset+bh, len(m.paneGroups))
+	for i := m.paneOffset; i < end; i++ {
+		g := m.paneGroups[i]
+		label := fmt.Sprintf("%s (%d)", g.Title, len(g.Indices))
+		var line string
+		switch {
+		case i == m.paneSel && m.paneFocus == paneSidebar:
+			line = m.st.cursor.Render("❯ " + label)
+		case i == m.paneSel:
+			line = m.st.groupTitle.Render("❯ " + label)
+		default:
+			line = "  " + m.paneEntryStyle(g.Title).Render(label)
+		}
+		lines = append(lines, pad.Render(line))
+	}
+	for len(lines) < bh {
+		lines = append(lines, pad.Render(""))
+	}
+	return lines
+}
+
+// paneEntryStyle はサイドバー項目の色を見出しの種類で選ぶ。
+// タスク本文中の +project / @context の色と揃え、一目で区別できるようにする。
+func (m Model) paneEntryStyle(title string) lipgloss.Style {
+	switch {
+	case strings.HasPrefix(title, "+"):
+		return m.st.project
+	case strings.HasPrefix(title, "@"):
+		return m.st.context
+	default:
+		return m.st.meta
+	}
+}
+
+// renderListLines は選択中グループのタスクリストを bh 行ぶん描画する。
+func (m Model) renderListLines(lw, bh int) []string {
+	clip := lipgloss.NewStyle().MaxWidth(lw)
+	lines := make([]string, 0, bh)
+
+	if len(m.rows) == 0 || m.cursor < 0 {
+		lines = append(lines, "  (表示するタスクがありません)")
+	}
+	end := min(m.offset+bh, len(m.rows))
+	for i := m.offset; i < end; i++ {
+		selected := i == m.cursor
+		lines = append(lines, clip.Render(m.renderTask(m.rows[i].taskIdx, selected)))
+	}
+	for len(lines) < bh {
+		lines = append(lines, "")
+	}
+	return lines
 }
 
 func (m Model) renderTask(idx int, selected bool) string {
@@ -162,6 +261,8 @@ func (m Model) renderHelp() string {
 		"  u             直前の削除/アーカイブを取り消し",
 		"  f / /         フィルタ入力 (+proj @ctx (A) keyword)",
 		"  esc           フィルタ解除",
+		"  p             pane 表示切替 (左: +project / project なしは @context 別)",
+		"  h / l         pane 間のフォーカス移動 (pane 表示中は tab でも切替)",
 		"  tab           グルーピング切替 (flat→project→context→priority)",
 		"  s             ソート切替 (priority⇔completed: 完了日の新しい順)",
 		"  c             完了タスクの表示/非表示",

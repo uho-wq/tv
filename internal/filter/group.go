@@ -1,6 +1,8 @@
 package filter
 
 import (
+	"maps"
+	"slices"
 	"sort"
 
 	"github.com/uho-wq/tv/internal/todotxt"
@@ -56,6 +58,7 @@ const (
 	noProject  = "(no project)"
 	noContext  = "(no context)"
 	noPriority = "(no priority)"
+	paneOther  = "(other)"
 )
 
 // GroupBy は indices で示されるタスクを key の軸でグルーピングする。
@@ -120,6 +123,51 @@ func GroupBy(tasks []todotxt.Task, indices []int, key GroupKey, sortKey SortKey)
 		idxs := buckets[title]
 		sortIndices(tasks, idxs, sortKey)
 		groups = append(groups, Group{Title: title, Indices: idxs})
+	}
+	return groups
+}
+
+// PaneGroups は pane 表示のサイドバーに並べるグループを作る。
+//
+// project を持つタスクは各 "+project" グループへ、project を持たないタスクは
+// 各 "@context" グループへ、どちらも持たないタスクは "(other)" へ入る。
+// GroupByProject では project 未指定のタスクが 1 つの "(no project)" に
+// 潰れてしまい context の見分けがつかないため、pane 表示ではこの軸を使う。
+//
+// 並びは project 群（辞書順）→ context 群（辞書順）→ "(other)"。
+// 複数の project / context を持つタスクは該当する各グループに重複して現れる。
+func PaneGroups(tasks []todotxt.Task, indices []int, sortKey SortKey) []Group {
+	projects := map[string][]int{}
+	contexts := map[string][]int{}
+	var other []int
+
+	for _, i := range indices {
+		t := tasks[i]
+		switch {
+		case len(t.Projects) > 0:
+			for _, p := range t.Projects {
+				projects["+"+p] = append(projects["+"+p], i)
+			}
+		case len(t.Contexts) > 0:
+			for _, c := range t.Contexts {
+				contexts["@"+c] = append(contexts["@"+c], i)
+			}
+		default:
+			other = append(other, i)
+		}
+	}
+
+	groups := make([]Group, 0, len(projects)+len(contexts)+1)
+	for _, bucket := range []map[string][]int{projects, contexts} {
+		for _, title := range slices.Sorted(maps.Keys(bucket)) {
+			idxs := bucket[title]
+			sortIndices(tasks, idxs, sortKey)
+			groups = append(groups, Group{Title: title, Indices: idxs})
+		}
+	}
+	if len(other) > 0 {
+		sortIndices(tasks, other, sortKey)
+		groups = append(groups, Group{Title: paneOther, Indices: other})
 	}
 	return groups
 }

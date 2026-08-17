@@ -15,6 +15,7 @@ type styles struct {
 	project    lipgloss.Style
 	context    lipgloss.Style
 	meta       lipgloss.Style
+	paneSep    lipgloss.Style
 	footer     lipgloss.Style
 	status     lipgloss.Style
 	statusErr  lipgloss.Style
@@ -38,6 +39,7 @@ func newStyles() styles {
 		project:   lipgloss.NewStyle().Foreground(lipgloss.Color("114")),
 		context:   lipgloss.NewStyle().Foreground(lipgloss.Color("75")),
 		meta:      lipgloss.NewStyle().Foreground(lipgloss.Color("245")),
+		paneSep:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		footer:    lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Padding(0, 1),
 		status:    lipgloss.NewStyle().Foreground(lipgloss.Color("114")).Padding(0, 1),
 		statusErr: lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Padding(0, 1),

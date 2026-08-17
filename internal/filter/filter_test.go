@@ -131,6 +131,59 @@ func TestSortKeyNext(t *testing.T) {
 	}
 }
 
+func TestPaneGroups(t *testing.T) {
+	tasks := parse(
+		"report +Work @office",   // 0: project あり → +Work のみ
+		"buy milk @errand",       // 1: project なし → @errand
+		"(A) call mom @phone",    // 2: project なし → @phone
+		"misc task",              // 3: project も context もなし → (other)
+		"plan trip +Home +Work",  // 4: 複数 project → 両方に重複
+		"pay bill @errand @bank", // 5: project なし複数 context → 両方に重複
+	)
+	indices := []int{0, 1, 2, 3, 4, 5}
+
+	groups := PaneGroups(tasks, indices, SortPriority)
+
+	want := []struct {
+		title   string
+		indices []int
+	}{
+		{"+Home", []int{4}},
+		{"+Work", []int{0, 4}},
+		{"@bank", []int{5}},
+		{"@errand", []int{1, 5}},
+		{"@phone", []int{2}},
+		{"(other)", []int{3}},
+	}
+	if len(groups) != len(want) {
+		t.Fatalf("groups = %d, want %d: %+v", len(groups), len(want), groups)
+	}
+	for i, w := range want {
+		if groups[i].Title != w.title {
+			t.Errorf("groups[%d].Title = %q, want %q", i, groups[i].Title, w.title)
+		}
+		if !eqInts(groups[i].Indices, w.indices) {
+			t.Errorf("groups[%d].Indices = %v, want %v", i, groups[i].Indices, w.indices)
+		}
+	}
+}
+
+func TestPaneGroupsProjectTaskContextNotSplit(t *testing.T) {
+	// project を持つタスクの context は pane の軸にしない
+	// （project 側にだけ現れる）。
+	tasks := parse("report +Work @office")
+	groups := PaneGroups(tasks, []int{0}, SortPriority)
+	if len(groups) != 1 || groups[0].Title != "+Work" {
+		t.Errorf("groups = %+v, want only +Work", groups)
+	}
+}
+
+func TestPaneGroupsEmpty(t *testing.T) {
+	if groups := PaneGroups(nil, nil, SortPriority); len(groups) != 0 {
+		t.Errorf("groups = %+v, want empty", groups)
+	}
+}
+
 func eqInts(a, b []int) bool {
 	if len(a) != len(b) {
 		return false

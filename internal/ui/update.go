@@ -66,15 +66,59 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, m.keys.Up):
-		m.moveCursor(-1)
+		if m.paneSidebarActive() {
+			m.paneMove(-1)
+		} else {
+			m.moveCursor(-1)
+		}
 	case key.Matches(msg, m.keys.Down):
-		m.moveCursor(1)
+		if m.paneSidebarActive() {
+			m.paneMove(1)
+		} else {
+			m.moveCursor(1)
+		}
 	case key.Matches(msg, m.keys.Top):
-		m.cursorToEdge(-1)
+		if m.paneSidebarActive() {
+			m.paneSelect(0)
+		} else {
+			m.cursorToEdge(-1)
+		}
 	case key.Matches(msg, m.keys.Bottom):
-		m.cursorToEdge(1)
+		if m.paneSidebarActive() {
+			m.paneSelect(len(m.paneGroups) - 1)
+		} else {
+			m.cursorToEdge(1)
+		}
+
+	case key.Matches(msg, m.keys.Pane):
+		m.pane = !m.pane
+		if m.pane {
+			m.paneFocus = paneSidebar
+			m.setStatus("pane 表示: on  (h/l でフォーカス移動)", false)
+		} else {
+			m.setStatus("pane 表示: off", false)
+		}
+		m.rebuild()
+
+	case key.Matches(msg, m.keys.PaneLeft):
+		if m.pane {
+			m.paneFocus = paneSidebar
+		}
+	case key.Matches(msg, m.keys.PaneRight):
+		if m.pane {
+			m.paneFocus = paneList
+		}
 
 	case key.Matches(msg, m.keys.Group):
+		if m.pane {
+			// pane 表示中の tab はペイン間のフォーカス切替。
+			if m.paneFocus == paneSidebar {
+				m.paneFocus = paneList
+			} else {
+				m.paneFocus = paneSidebar
+			}
+			return m, nil
+		}
 		m.groupKey = m.groupKey.Next()
 		m.rebuild()
 		m.setStatus(fmt.Sprintf("グループ: %s", groupLabel(m.groupKey)), false)
@@ -117,6 +161,11 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.openEditor()
 
 	case key.Matches(msg, m.keys.EditLine):
+		// サイドバーで enter したときはグループ決定 = リストへフォーカス移動。
+		if m.paneSidebarActive() && msg.String() == "enter" {
+			m.paneFocus = paneList
+			return m, nil
+		}
 		return m, m.startEditLine()
 
 	case key.Matches(msg, m.keys.AddLine):

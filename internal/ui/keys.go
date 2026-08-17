@@ -12,6 +12,9 @@ type keyMap struct {
 	Archive         key.Binding
 	Undo            key.Binding
 	Group           key.Binding
+	Pane            key.Binding
+	PaneLeft        key.Binding
+	PaneRight       key.Binding
 	Sort            key.Binding
 	ToggleCompleted key.Binding
 	Filter          key.Binding
@@ -62,6 +65,18 @@ func defaultKeys() keyMap {
 		Group: key.NewBinding(
 			key.WithKeys("tab"),
 			key.WithHelp("tab", "グループ切替"),
+		),
+		Pane: key.NewBinding(
+			key.WithKeys("p"),
+			key.WithHelp("p", "pane 表示切替"),
+		),
+		PaneLeft: key.NewBinding(
+			key.WithKeys("h", "left"),
+			key.WithHelp("h", "左ペインへ"),
+		),
+		PaneRight: key.NewBinding(
+			key.WithKeys("l", "right"),
+			key.WithHelp("l", "右ペインへ"),
 		),
 		Sort: key.NewBinding(
 			key.WithKeys("s"),
